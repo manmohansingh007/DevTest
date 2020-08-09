@@ -17,22 +17,36 @@ namespace DeveloperTest.Business
 
         public JobModel[] GetJobs()
         {
-            return context.Jobs.Select(x => new JobModel
-            {
-                JobId = x.JobId,
-                Engineer = x.Engineer,
-                When = x.When
-            }).ToArray();
+            return (from job in context.Jobs
+                    join customer in context.Customers on job.CustomerId equals customer.CustomerId
+                    into job_customer_joined
+                    from groupjoined in job_customer_joined.DefaultIfEmpty()
+                    select new JobModel
+                    {
+                        JobId = job.JobId,
+                        Engineer = job.Engineer,
+                        When = job.When,
+                        CustomerName = groupjoined == null ? "Unknown" : groupjoined.Name,
+                        CustomerType = groupjoined == null ? "Unknown" : groupjoined.Type
+                    }).ToArray();
         }
 
         public JobModel GetJob(int jobId)
         {
-            return context.Jobs.Where(x => x.JobId == jobId).Select(x => new JobModel
-            {
-                JobId = x.JobId,
-                Engineer = x.Engineer,
-                When = x.When
-            }).SingleOrDefault();
+            return (from job in context.Jobs.Where(x=> x.JobId == jobId)
+                    join customer in context.Customers on job.CustomerId equals customer.CustomerId
+                    into job_customer_joined
+                    from groupjoined in job_customer_joined.DefaultIfEmpty()
+
+                    select new JobModel
+                    {
+                        JobId = job.JobId,
+                        Engineer = job.Engineer,
+                        When = job.When,
+                        CustomerName = groupjoined == null ? "Unknown" : groupjoined.Name,
+                        CustomerType = groupjoined == null ? "Unknown" : groupjoined.Type
+                    }).FirstOrDefault();
+
         }
 
         public JobModel CreateJob(BaseJobModel model)
@@ -40,17 +54,12 @@ namespace DeveloperTest.Business
             var addedJob = context.Jobs.Add(new Job
             {
                 Engineer = model.Engineer,
-                When = model.When
+                When = model.When,
+                CustomerId = model.CustomerId
             });
 
             context.SaveChanges();
-
-            return new JobModel
-            {
-                JobId = addedJob.Entity.JobId,
-                Engineer = addedJob.Entity.Engineer,
-                When = addedJob.Entity.When
-            };
+            return GetJob(addedJob.Entity.JobId);
         }
     }
 }
